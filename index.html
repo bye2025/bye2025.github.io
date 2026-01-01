@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	<title>元旦快乐 — 2026</title>
+	<meta name="description" content="元旦快乐！欢迎来到 2026 新年主页，烟花与彩带庆祝页面。">
+	<style>
+		:root{--bg1:#0f172a;--bg2:#07103a;--accent:#ffcc33;--muted:#cbd5e1}
+		html,body{height:100%}
+		body{margin:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,'PingFang SC','Hiragino Sans GB',"Microsoft Yahei",sans-serif;color:white;background:linear-gradient(180deg,var(--bg1),var(--bg2));display:flex;align-items:center;justify-content:center;overflow:hidden}
+		.wrap{position:relative;max-width:1100px;width:100%;padding:48px;box-sizing:border-box;text-align:center}
+		h1{font-size:clamp(28px,6vw,84px);margin:0 0 8px;letter-spacing:2px;text-shadow:0 6px 24px rgba(0,0,0,.6)}
+		.subtitle{color:var(--muted);font-size:clamp(14px,2.2vw,20px);margin-bottom:18px}
+		.chip{display:inline-block;background:rgba(255,255,255,.06);padding:10px 16px;border-radius:999px;color:var(--accent);font-weight:700;margin-bottom:20px}
+		.card{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.02));padding:18px;border-radius:12px;backdrop-filter:blur(6px);display:inline-block}
+		.actions{margin-top:14px;display:flex;gap:12px;justify-content:center}
+		button{background:var(--accent);border:none;padding:10px 16px;border-radius:8px;font-weight:700;color:#1b1b1b;cursor:pointer}
+		button.secondary{background:transparent;border:1px solid rgba(255,255,255,.08);color:var(--muted)}
+		footer{position:fixed;left:12px;bottom:12px;color:rgba(255,255,255,.6);font-size:13px}
+
+		/* Canvas covers */
+		canvas{position:fixed;inset:0;pointer-events:none}
+
+		/* small sparkle */
+		.spark{position:absolute;inset:auto;pointer-events:none}
+		@media (max-width:600px){.wrap{padding:20px}}
+	</style>
+</head>
+<body>
+	<canvas id="fx"></canvas>
+	<canvas id="confetti"></canvas>
+
+	<div class="wrap">
+		<div class="chip">今天是2026年的第一天，即元旦节假日</div>
+		<h1>元旦快乐！新年万事如意</h1>
+		<div class="subtitle">愿你的 2026 充满希望、好运与精彩瞬间。</div>
+
+		<div class="card" role="region" aria-label="节日信息">
+			<p style="margin:0 0 8px">现在是：<strong id="now">--</strong></p>
+			<div class="actions">
+				<button id="launch">发射烟花</button>
+				<button id="toggleSound" class="secondary">开启音效</button>
+			</div>
+		</div>
+	</div>
+
+	<footer>2026元旦特别版</footer>
+
+	<script>
+		// 时间显示
+		const nowEl = document.getElementById('now');
+		function tick(){
+			const d=new Date();
+			nowEl.textContent = d.toLocaleString();
+		}
+		setInterval(tick,1000); tick();
+
+		// 简易音效
+		const audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+		function playPop(){
+			const o=audioCtx.createOscillator();
+			const g=audioCtx.createGain();
+			o.type='sine'; o.frequency.value=450; g.gain.value=0.05;
+			o.connect(g); g.connect(audioCtx.destination);
+			o.start(); o.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime+0.18);
+			o.stop(audioCtx.currentTime+0.22);
+		}
+		let soundOn = false;
+		document.getElementById('toggleSound').addEventListener('click', ()=>{
+			if(!soundOn){audioCtx.resume(); playPop();}
+			soundOn = !soundOn; document.getElementById('toggleSound').textContent = soundOn? '关闭音效':'开启音效';
+		});
+
+		// Fireworks canvas
+		const canvas = document.getElementById('fx');
+		const ctx = canvas.getContext('2d');
+		function resize(){canvas.width=innerWidth;canvas.height=innerHeight;}
+		addEventListener('resize', resize); resize();
+
+		class Particle{
+			constructor(x,y,dx,dy,color,life){this.x=x;this.y=y;this.dx=dx;this.dy=dy;this.color=color;this.life=life;this.age=0}
+			step(dt){this.x+=this.dx*dt;this.y+=this.dy*dt;this.dy+=0.0009*dt;this.age+=dt}
+			draw(ctx){ctx.globalAlpha = Math.max(0,1 - this.age/this.life);ctx.fillStyle=this.color;ctx.beginPath();ctx.arc(this.x,this.y,Math.max(1,3*(1-this.age/this.life)),0,Math.PI*2);ctx.fill();}
+		}
+
+		let particles=[];
+		function launchFirework(x=null){
+			x = x===null ? (innerWidth*0.2 + Math.random()*innerWidth*0.6) : x;
+			const y = innerHeight + 10;
+			const tx = innerHeight*0.35 + Math.random()*innerHeight*0.3;
+			// rocket
+			const rocket = {x:x,y:y,dx:0,dy:-Math.random()*0.9-0.9,sz:3,life:tx,age:0,color:'#fff'};
+			let rocketInterval = setInterval(()=>{
+				rocket.age += 16;
+				rocket.x += rocket.dx*16; rocket.y += rocket.dy*16; rocket.dy += 0.0015*16;
+				if(rocket.age >= rocket.life){
+					clearInterval(rocketInterval);
+					explode(rocket.x, rocket.y);
+					if(soundOn) playPop();
+				}
+			},16);
+		}
+
+		function randColor(){
+			const palette=['#ff6b6b','#ffd93d','#6bffb8','#6bd0ff','#d46bff','#ff9f6b'];
+			return palette[Math.floor(Math.random()*palette.length)];
+		}
+
+		function explode(x,y){
+			const n = 60 + Math.floor(Math.random()*60);
+			for(let i=0;i<n;i++){
+				const a = Math.random()*Math.PI*2; const s = Math.random()*3+1;
+				const dx = Math.cos(a)*s; const dy = Math.sin(a)*s;
+				particles.push(new Particle(x,y,dx,dy,randColor(),1200 + Math.random()*800));
+			}
+		}
+
+		function step(){
+			ctx.clearRect(0,0,canvas.width,canvas.height);
+			const now = performance.now();
+			// draw and step
+			for(let i=particles.length-1;i>=0;i--){
+				const p = particles[i]; p.step(16);
+				p.draw(ctx);
+				if(p.age > p.life) particles.splice(i,1);
+			}
+			requestAnimationFrame(step);
+		}
+		step();
+
+		// confetti canvas
+		const c2 = document.getElementById('confetti'); const c2ctx = c2.getContext('2d'); function resize2(){c2.width=innerWidth;c2.height=innerHeight}
+		addEventListener('resize', resize2); resize2();
+		const confs=[];
+		function spawnConfetti(){
+			for(let i=0;i<30;i++){
+				confs.push({x:Math.random()*innerWidth,y:-10,dx:(Math.random()-0.5)*1.8,dy:Math.random()*2+1, w:6+Math.random()*8,h:8+Math.random()*6,ang:Math.random()*Math.PI*2,rot:Math.random()*0.1, color:randColor()});
+			}
+		}
+		function confettiStep(){
+			c2ctx.clearRect(0,0,c2.width,c2.height);
+			for(let i=confs.length-1;i>=0;i--){const f=confs[i]; f.x+=f.dx; f.y+=f.dy; f.ang += f.rot; c2ctx.save(); c2ctx.translate(f.x,f.y); c2ctx.rotate(f.ang); c2ctx.fillStyle=f.color; c2ctx.fillRect(-f.w/2,-f.h/2,f.w,f.h); c2ctx.restore(); if(f.y>innerHeight+20) confs.splice(i,1);} requestAnimationFrame(confettiStep);
+		}
+		confettiStep();
+
+		// interactive
+		document.getElementById('launch').addEventListener('click', ()=>{launchFirework(); spawnConfetti();});
+		// auto celebration on load
+		setTimeout(()=>{for(let i=0;i<5;i++){setTimeout(()=>{launchFirework();spawnConfetti();}, i*400)}},700);
+
+		// Click to launch
+		addEventListener('pointerdown',(e)=>{launchFirework(e.clientX); spawnConfetti(); if(soundOn) playPop();});
+	</script>
+</body>
+</html>
+
