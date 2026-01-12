@@ -39,24 +39,56 @@
 
 如果你在其他路径下的仓库也需要使用相同的 SSH 密钥，可以按照以下步骤进行配置：
 
-### 1. 进入目标仓库目录
-```bash
-cd /path/to/your/repository
+### 1. 配置 SSH 客户端配置文件（推荐方法）
+
+首先，在你的用户目录下编辑或创建 SSH 配置文件：
+
+```
+# Windows: %USERPROFILE%\.ssh\config
+# 在 Windows 系统上，路径通常为 C:\Users\<用户名>\.ssh\config
+
+Host github-personal
+  Hostname ssh.github.com
+  Port 443
+  User git
+  IdentityFile A:\gitbye@outlook.com\ssh\gitbySSH\ssh1\secKYE
+  IdentitiesOnly yes
+
+# 如果有其他账户，可以添加更多配置块
+Host github-work
+  Hostname ssh.github.com
+  Port 443
+  User git
+  IdentityFile A:\work\ssh\keys\work_key
+  IdentitiesOnly yes
 ```
 
-### 2. 配置仓库专用的 SSH 命令
+**Windows 特殊注意事项：**
+- 确保 .ssh 目录权限设置正确，否则 SSH 可能拒绝使用配置文件
+- 在 Windows 上编辑配置文件，可以用记事本或其他文本编辑器
+- 路径中的反斜杠有时需要转义，使用正斜杠通常更可靠
+- 如果使用 Git Bash，可能需要将路径转换为 Unix 格式（例如 /a/gitbye... 而不是 A:\gitbye...）
+
+这样配置的好处是：
+- 为不同项目/账户使用不同的 SSH 密钥
+- 不需要在每个仓库中单独配置
+- 更易于管理和维护
+
+### 2. 测试 SSH 连接
 ```bash
-git config core.sshCommand 'ssh -i "A:\gitbye@outlook.com\ssh\gitbySSH\ssh1\secKYE" -o IdentitiesOnly=yes'
+ssh -T git@github-personal
 ```
 
-### 3. 测试 SSH 连接
+### 3. 克隆使用特定配置的仓库
 ```bash
-ssh -T git@github.com -i "A:\gitbye@outlook.com\ssh\gitbySSH\ssh1\secKYE"
+git clone git@github-personal:username/repo-name.git
 ```
 
-### 4. 推送代码到远程仓库
+### 4. 对于已存在的仓库
+
+如果你已经有一个克隆的仓库，可能需要更新远程 URL：
 ```bash
-git push origin main
+git remote set-url origin git@github-personal:username/repo-name.git
 ```
 
-> 注意：这种配置方式确保了每个仓库都有自己的 SSH 配置，不会相互影响。如果你想为所有仓库统一配置，也可以使用全局配置，但需要确保所有仓库都使用相同的 SSH 密钥。
+> 注意：使用 SSH 配置文件的方式更加系统化，可以一次性解决多个仓库的 SSH 连接问题，而不需要在每个仓库中单独配置。
